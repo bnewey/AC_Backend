@@ -8,13 +8,13 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "command": "/home/bbnewey/visual-workspace/OFFICE_LIGHTS/office_lights/buildThis.sh",
+            "command": "/home/bbnewey/node-workspace/AC-REPO/AC_Backend/buildThis.sh",
             "problemMatcher": [
                 "$gcc"
             ]
         },
         {
-            "label": "Build & run C++ project",
+            "label": "Build & run C++ project AC",
             "type": "shell",
             "group": {
                 "kind": "test",

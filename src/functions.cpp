@@ -106,10 +106,10 @@ int read_bytes(char  (&read_buf)[BUFF_SIZE],int & serial_port , int & numIterati
 					//print_buf(read_buf, numIterations, remaining);
 				}
 			} catch(ssize_t readChars){
-				cout<<"Read exception caught"<<endl;
+				cout<<"Read exception caught"<<endl;	
 			}	
 		}
-		if(read_buf[0] != 0x02 && read_buf[SWITCHES_MAX_SIZE+LIGHTS_MAX_SIZE+1] != 0x55){
+		if(read_buf[0] != 0x02 && read_buf[ZONES_MAX_SIZE+COND_UNIT_MAX_SIZE+1] != 0x55){
 			cout<<"ERROR: BAD INPUT FROM COM PORT"<<endl;
 			//print_buf(read_buf, 1 ,1);
 			return 0;
@@ -120,48 +120,58 @@ int read_bytes(char  (&read_buf)[BUFF_SIZE],int & serial_port , int & numIterati
 }
 
 
-void getDataFromRead(char  (&read_buf)[BUFF_SIZE], vector<short> & switch_vector){
+void getDataFromRead(char  (&read_buf)[BUFF_SIZE], vector<vector<short>> & data_in_vector){
 	if(read_buf[0] != 0x02){
 		return;
 	}
 	//Clear vector, clear resets vector but not memory, so this is efficient
-	switch_vector.clear();
-	for(int i=0; i<SWITCHES_MAX_SIZE;i++){
-		switch_vector.push_back(read_buf[i+1]); //+1 because of 0x02 start char
+	data_in_vector.clear();
+
+	vector<short> tmpVector(READ_OBJECT_SIZE);
+	for(int i=0; i<(COND_UNIT_MAX_SIZE + ZONES_MAX_SIZE);i++){
+		for(int p=0; p<READ_OBJECT_SIZE-1 ; p++){
+			tmpVector.push_back(read_buf[i+1]);//+1 because of 0x02 start char
+		}
+		data_in_vector.push_back(tmpVector); 
+		tmpVector.clear(); 
 	}
 
-	if(switch_vector.size() != SWITCHES_MAX_SIZE){
+	if(data_in_vector.size() != (COND_UNIT_MAX_SIZE + ZONES_MAX_SIZE)){
 		cout<<"VECTOR SIZE IS BAD"<<endl;
 	}
 }
 
-void editWriteBuf(char (&temp)[WRITE_BUFF_SIZE] , shared_ptr<SwitchHandler> sh){
+void editWriteBuf(char (&temp)[WRITE_BUFF_SIZE] , shared_ptr<ACHandler> sh){
 	temp[0] = 0x02;
 
 	//Fill the Switch section
 	//this section is ignored
-	for(int i=0; i<SWITCHES_MAX_SIZE;i++) { 
-		temp[i+1] = 0x00;
+	// for(int i=0; i<ZONES_MAX_SIZE;i++) { 
+	// 	temp[i+1] = 0x00;
+	// }
+
+	// //Fill the Lights section
+	// //fills with as many lights are existing
+	// vector<short> lightValues = (*sh).getLightValues();
+
+	// int lv_size = lightValues.size();
+	// cout<<"light values vector SIZE: "<<lv_size<<endl;
+
+	// auto iter = lightValues.begin();
+    // for ( ; iter !=  lightValues.end(); iter++){   
+    //     temp[ COND_UNIT_MAX_SIZE + 1 + (iter - lightValues.begin())] = ((*iter) ? 0x01 : 0x00);;
+    // }
+	// //Give the rest 0's
+	// //Not needed at this point, but it doesnt hurt 
+	// for(int i=0; i<(COND_UNIT_MAX_SIZE-lv_size);i++) { //this section is ignored
+	// 	temp[i + COND_UNIT_MAX_SIZE + 1 + lv_size] =  0x00;
+	// }
+
+	// temp[ZONES_MAX_SIZE + COND_UNIT_MAX_SIZE + 1] = 0xaa;
+	for(int i=0; i<WRITE_BUFF_SIZE-2;i++) { 
+	 	temp[i+1] = 0x00;
 	}
-
-	//Fill the Lights section
-	//fills with as many lights are existing
-	vector<short> lightValues = (*sh).getLightValues();
-
-	int lv_size = lightValues.size();
-	cout<<"light values vector SIZE: "<<lv_size<<endl;
-
-	auto iter = lightValues.begin();
-    for ( ; iter !=  lightValues.end(); iter++){   
-        temp[ LIGHTS_MAX_SIZE + 1 + (iter - lightValues.begin())] = ((*iter) ? 0x01 : 0x00);;
-    }
-	//Give the rest 0's
-	//Not needed at this point, but it doesnt hurt 
-	for(int i=0; i<(LIGHTS_MAX_SIZE-lv_size);i++) { //this section is ignored
-		temp[i + LIGHTS_MAX_SIZE + 1 + lv_size] =  0x00;
-	}
-
-	temp[SWITCHES_MAX_SIZE + LIGHTS_MAX_SIZE + 1] = 0xaa;
+	temp[WRITE_BUFF_SIZE-1] = 0xaa;
 
 }
 
@@ -252,7 +262,7 @@ void mysqlConnect(MYSQL & mysql){
 	mysql_init(&mysql);
 	mysql_options(&mysql,MYSQL_READ_DEFAULT_GROUP,"nitrogen");
 	printf("MYSQL INFO: %s\n", mysql_get_client_info());
-	if (!mysql_real_connect(&mysql,"127.0.0.1","root","!Baseball15","office_lights",0,NULL,0))
+	if (!mysql_real_connect(&mysql,"127.0.0.1","root","!Baseball15","ac_heat",0,NULL,0))
 	{
 		fprintf(stderr, "Failed to connect to database: Error: %s\n",
 			mysql_error(&mysql));
@@ -289,8 +299,13 @@ int mysqlQueryFixed(MYSQL & mysql, const string sql, vector< vector<string> > & 
 	while ((row = mysql_fetch_row(result)))	{
 		vector<string> tmp;
 		for(unsigned int p = 0; p < num_fields; p++) {	
-				string t = row[p];
-				tmp.push_back(t);
+				if(row[p] != NULL){
+					string t = row[p];
+					tmp.push_back(t);
+				}else{
+					tmp.push_back("");
+				}
+				
 		}
 
 		// //Print Vector

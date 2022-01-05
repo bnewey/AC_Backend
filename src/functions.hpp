@@ -10,7 +10,8 @@
 //============================================================================
 
 
-#include "./switch_handler.hpp"
+//#include "./switch_handler.hpp"
+#include "./ac_handler.hpp"
 #include "./constants.hpp"
 //#include "./tmpSwitch.cpp"
  
@@ -27,9 +28,9 @@ void print_ui_buff(char (&ui_buf)[UI_BUFF_SIZE]);
 
 int read_bytes(char  (&read_buf)[BUFF_SIZE],int & serial_port , int & numIterations);
 
-void getDataFromRead(char  (&read_buf)[BUFF_SIZE], vector<short> & switch_vector);
+void getDataFromRead(char  (&read_buf)[BUFF_SIZE], vector<vector<short>> & switch_vector);
 
-void editWriteBuf(char (&temp)[WRITE_BUFF_SIZE] , shared_ptr<SwitchHandler> sh);
+void editWriteBuf(char (&temp)[WRITE_BUFF_SIZE] , shared_ptr<ACHandler> sh);
 
 void write_bytes(int & serial_port, char (&temp)[WRITE_BUFF_SIZE]);
 

@@ -21,7 +21,6 @@ class Timer {
     
     
     int id; //index of readbuf
-    int switch_id;
     float value; // timer value
     bool isTimeUp;
 
@@ -31,7 +30,7 @@ class Timer {
     Timer();
 
     // constructor with params
-    Timer( int, int, float );
+    Timer( int, float );
 
     //Copy constructor
     Timer(const Timer &cp);
@@ -42,13 +41,11 @@ class Timer {
 
     //getters
     int getTimerId();
-    int getSwitchId();
     short getTimerValue();
     bool getIsTimeUp();
 
     //setters 
     void setTimerId(int);
-    void setSwitchId(int);
     void setTimerValue(short);
 
 };

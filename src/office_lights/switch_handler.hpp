@@ -4,10 +4,6 @@
 #include <vector>
 #include <jsoncpp/json/json.h>
 #include <memory>
-// class SingleSwitch;
-// class DoubleSwitch;
-// #include "./switch.hpp"
-// #include "./light.hpp"
 
 #include "./constants.hpp"
 #include "./light.hpp"
@@ -15,10 +11,6 @@
 #include "./single_switch.hpp"
 #include "./double_switch.hpp"
 
-// class Switch;
-// #include "./single_switch.hpp"
-// #include "./double_switch.hpp"
-// #include "./light.hpp"
 
 using namespace std;
 

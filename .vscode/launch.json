@@ -3,14 +3,14 @@
     "configurations": [
         
         {
-            "name": "C++ Debug (gdb)",
+            "name": "C++ Debug (gdb) AC",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/home/bbnewey/visual-workspace/OFFICE_LIGHTS/office_lights/bin/main",
+            "program": "/home/bbnewey/node-workspace/AC-REPO/AC_Backend/bin/main",
             "preLaunchTask": "Build C++ project",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "/home/bbnewey/visual-workspace/OFFICE_LIGHTS/office_lights",
+            "cwd": "/home/bbnewey/node-workspace/AC-REPO/AC_Backend",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",

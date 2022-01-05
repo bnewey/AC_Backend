@@ -23,8 +23,8 @@ Timer::Timer(){
 }
 
 // Constructor with int  current_mode passed
-Timer::Timer( int id, int switch_id, float value) 
-  : id(id), switch_id(switch_id) , value(value)
+Timer::Timer( int id, float value) 
+  : id(id) , value(value)
   {
     this->isTimeUp = true;
 }
@@ -32,7 +32,6 @@ Timer::Timer( int id, int switch_id, float value)
 //Copy constructor
 Timer::Timer(const Timer &cp){
     this->id = cp.id; 
-    this->switch_id = cp.switch_id;
     this->value = cp.value; 
     this->isTimeUp = cp.isTimeUp;
 }
@@ -46,7 +45,7 @@ bool Timer::updateTimer(float seconds_passed){
             this->isTimeUp = true;
             return true;
         }
-        cout<<"Timer: "<<value<<endl;
+        //cout<<"Timer: "<<value<<endl;
     }
     return false;
 }
@@ -57,9 +56,6 @@ int Timer::getTimerId(){
     return this->id;
 }
 
-int Timer::getSwitchId(){
-    return this->switch_id;
-}
 short Timer::getTimerValue(){
     return this->value;
 }
@@ -74,12 +70,6 @@ void Timer::setTimerId(int id){
         return;
     }
     this->id = id;
-}
-void Timer::setSwitchId(int id){
-    if(id < 0){
-        return;
-    }
-    this->switch_id = id;
 }
 void Timer::setTimerValue(short value){
     if(value < 0){

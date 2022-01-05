@@ -38,7 +38,7 @@
 #include <mysql/mysql.h>
 
 //forward declaration
-class SwitchHandler;
+class ACHandler;
 //Functions File
 #include "./functions.hpp"
 
@@ -51,8 +51,8 @@ using namespace std;
 //BUFF_SIZE defined in functions.cpp
 
 struct arg_struct {
-    vector<string> lights_values;
-	vector<string> switch_values;
+    vector<string> cond_unit_values;
+	vector<string> zone_values;
 	MYSQL mysql;
 };
 struct arg_struct args;
@@ -61,20 +61,20 @@ void * sendToDb(void * arguments){
 	struct arg_struct *args1 = (struct arg_struct *)arguments;
 
 	MYSQL mysql = (MYSQL) args1->mysql;
-	vector<string> light_data = args1->lights_values;
-	vector<string> switch_data = args1->switch_values;
+	vector<string> cond_unit_data = args1->cond_unit_values;
+	vector<string> zone_data = args1->zone_values;
 
 	//Lights sql
-	auto iter = light_data.begin();
-	for ( ; iter !=  light_data.end(); iter++){
+	auto iter = cond_unit_data.begin();
+	for ( ; iter !=  cond_unit_data.end(); iter++){
 		if(!(mysqlQueryNoReturn(mysql, (*iter)))){
 			cout<<"Error sending light data to DB"<<endl;
 		}
 	}
 
 	//Switch sql 
-	auto iter2 = switch_data.begin();
-	for ( ; iter2 !=  switch_data.end(); iter2++){
+	auto iter2 = zone_data.begin();
+	for ( ; iter2 !=  zone_data.end(); iter2++){
 		if(!(mysqlQueryNoReturn(mysql, (*iter2)))){
 			cout<<"Error sending light data to DB"<<endl;
 		}
@@ -156,7 +156,7 @@ int main() {
 	memset(&write_buf, '\0', sizeof(write_buf));
 
 	//Create vector for our switch values
-	vector<short> switch_vector(SWITCHES_MAX_SIZE,0);
+	vector<vector<short>> data_in_vector((ZONES_MAX_SIZE+COND_UNIT_MAX_SIZE));
 
     //Set / read in settings for our Port
 	usb_port(serial_port);
@@ -167,16 +167,23 @@ int main() {
 	
 
 	// //Get Switch config variables
-	vector< vector<string> > switch_variables;
-	if(!(mysqlQueryFixed(mysql,"SELECT id, array_index, type, name, description, toggle_timer, move_timer, mode FROM switches ORDER BY id ASC" , switch_variables))){
-		cout<<"Query to MySQL did not successfully get switch variables, default variables applied"<<endl;
+	vector< vector<string> > zone_variables;
+	if(!(mysqlQueryFixed(mysql,"SELECT id, array_index, name, description, mode  FROM zones ORDER BY id ASC" , zone_variables))){
+		cout<<"Query to MySQL did not successfully get zone variables, default variables applied"<<endl;
 		return 0;
 	}
 
 	//Get Light config variables
-	vector<vector<string> > light_variables;
-	if(!(mysqlQueryFixed(mysql,"SELECT id, array_index, switch_id, value, name, description  FROM lights ORDER BY id ASC" , light_variables))){
-		cout<<"Query to MySQL did not successfully get light variables"<<endl;
+	vector<vector<string> > cond_unit_variables;
+	if(!(mysqlQueryFixed(mysql,"SELECT id, array_index, type, description, compressor_on FROM conditioning_units ORDER BY id ASC" , cond_unit_variables))){
+		cout<<"Query to MySQL did not successfully get cond_unit variables"<<endl;
+		return 0;
+	}
+
+	//Get Adjustment Table config variables
+	vector<vector<string> > adj_table_variables;
+	if(!(mysqlQueryFixed(mysql,"SELECT id, temp_min, temp_max, down_2, down_1, no_change, up_1, up_2 FROM adjustment_table ORDER BY id ASC" , adj_table_variables))){
+		cout<<"Query to MySQL did not successfully get cond_unit variables"<<endl;
 		return 0;
 	}
 
@@ -185,8 +192,8 @@ int main() {
 	//Set Start Time for DB update
 	std::chrono::steady_clock::time_point db_timer1 = std::chrono::steady_clock::now();
 	
-	//Create SwitchHandler with our config variables
-	shared_ptr<SwitchHandler> sh(make_shared<SwitchHandler>(switch_variables, light_variables));
+	//Create ACHandler with our config variables
+	shared_ptr<ACHandler> sh(make_shared<ACHandler>(zone_variables, cond_unit_variables, adj_table_variables));
 
 	//numReads: num of reads from port
 	//n: num of iterations to read exact num of bits | 0 means nothing read this iteration, > 0 means something has been read 
@@ -243,18 +250,18 @@ int main() {
 		if( numIterations > 0 && totalReadChars == BUFF_SIZE){ 
 			//if something was successfully polled and read from USB, do stuff with this data
 			//cout<<"If poll&read ----"<<"WriteResponse: "<<writeResponse<<"  |  ReadResponse: "<<numIterations<<endl;
-			print_buf(read_buf, numIterations ,totalReadChars);
+			//print_buf(read_buf, numIterations ,totalReadChars);
 			missedReads = 0;
 	
 			//Handle Time Updates
 			std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
 			std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1);
 			t1 = std::chrono::steady_clock::now();
-			(*sh).updateTimers(time_span.count());
+			(*sh).updateCheckTimer(time_span.count());
 
-			//Take read data and fill our switch vector for update
-			//switch_vector can be edited from UI commands also
-			getDataFromRead(read_buf, switch_vector);			
+			//Take read data and fill our data vector for update
+			//data_in_vector can be edited from UI commands also
+			getDataFromRead(read_buf, data_in_vector);			
 
 			numJsonSends++;
 			const string tmp2 = (*sh).createJsonDataString( numJsonSends);
@@ -267,7 +274,7 @@ int main() {
 			int stillAlive = readNodeSocket(args_UI.new_socket, ui_buf);
 			pthread_mutex_unlock(&UI_args_mutex);
 			//Print UI buff 
-			print_ui_buff(ui_buf);
+			//print_ui_buff(ui_buf);
 
 			//read from node js socket here
 			//sterilize string here
@@ -280,16 +287,16 @@ int main() {
 				pthread_mutex_unlock(&UI_args_mutex);
 				
 				if(ui_buf[0]=='0' && ui_buf[1]=='5'){
-					//toggle light
-					string switch_to_toggle = "";
-					switch_to_toggle.push_back(ui_buf[2]);
-					switch_to_toggle.push_back(ui_buf[3]);
-					switch_to_toggle.push_back(ui_buf[4]);
-					int switch_id = stoi(switch_to_toggle);
-					//Edit switch_vector
-					if(!((*sh).setSwitchToggle(switch_id))){
-						cout<<"Error: Did not toggle switch with array_index:"<<switch_id<<endl;
-					}
+					// //toggle light
+					// string switch_to_toggle = "";
+					// switch_to_toggle.push_back(ui_buf[2]);
+					// switch_to_toggle.push_back(ui_buf[3]);
+					// switch_to_toggle.push_back(ui_buf[4]);
+					// int switch_id = stoi(switch_to_toggle);
+					// //Edit data_in_vector
+					// if(!((*sh).setSwitchToggle(switch_id))){
+					// 	cout<<"Error: Did not toggle switch with array_index:"<<switch_id<<endl;
+					// }
 					
 					
 					
@@ -299,24 +306,28 @@ int main() {
 					
 				}
 				if(ui_buf[0]=='9' && ui_buf[1]=='9'){
-					//Refetch switch_variables
-					if(!(mysqlQueryFixed(mysql,"SELECT id, array_index, type, name, description, toggle_timer, move_timer, mode FROM switches ORDER BY id ASC" , switch_variables))){
-						cout<<"Query to MySQL did not successfully get switch variables, default variables applied"<<endl;
+					if(!(mysqlQueryFixed(mysql,"SELECT id, array_index, name, description, mode  FROM zones ORDER BY id ASC" , zone_variables))){
+						cout<<"Query to MySQL did not successfully get zone variables, default variables applied"<<endl;
 						return 0;
 					}
 
-					//Refetch light variables
-					if(!(mysqlQueryFixed(mysql,"SELECT id, array_index, switch_id, value, name, description  FROM lights ORDER BY id ASC" , light_variables))){
-						cout<<"Query to MySQL did not successfully get light variables"<<endl;
+					//Get Light config variables
+					if(!(mysqlQueryFixed(mysql,"SELECT id, array_index, type, description, compressor_on  FROM conditioning_units ORDER BY id ASC" , cond_unit_variables))){
+						cout<<"Query to MySQL did not successfully get cond_unit variables"<<endl;
+						return 0;
+					}
+					//Get Adjustment Table config variables
+					if(!(mysqlQueryFixed(mysql,"SELECT id, temp_min, temp_max, down_2, down_1, no_change, up_1, up_2 FROM adjustment_table ORDER BY id ASC" , adj_table_variables))){
+						cout<<"Query to MySQL did not successfully get adj_table variables"<<endl;
 						return 0;
 					}
 
 					//Reset will destruct old pointers
 					sh.reset();
-					//Create SwitchHandler with our config variables
-					shared_ptr<SwitchHandler> sh_tmp(make_shared<SwitchHandler>(switch_variables, light_variables));
+					//Create ACHandler with our config variables
+					shared_ptr<ACHandler> sh_tmp(make_shared<ACHandler>(zone_variables, cond_unit_variables, adj_table_variables));
 					sh = sh_tmp;
-					cout<<"Switch Variables Changed"<<endl;
+					cout<<"DB Variables Changed"<<endl;
 				}
 
 				
@@ -344,29 +355,28 @@ int main() {
 				}
 			}
 	
-			//Call Update to SwitchHandler Object
-			(*sh).updateSwitches(switch_vector);
+			//Call Update to ACHandler Object
+			(*sh).updateUsingData(data_in_vector);
 
 			//Have this write section after we recieve potential override commands from UI
 			//Edit write_buf with relay_p pointer to array
 			editWriteBuf(write_buf, sh);
-				
 
 			//Write to Serial Port to Update Relays
 			write_bytes(serial_port, write_buf);
 
-			print_write_buff(write_buf, 3 ,3 );
+			//_write_buff(write_buf, 3 ,3 );
 
 			//Send Update to DB ever 30 seconds
 			std::chrono::steady_clock::time_point db_timer2 = std::chrono::steady_clock::now();
 			std::chrono::duration<double> db_time_span = std::chrono::duration_cast<std::chrono::duration<double>>(db_timer2 - db_timer1);
 			
-			if( db_time_span.count() > 10){
+			if( db_time_span.count() > 30){
 
 				pthread_t db_thread;
 				
-				args.lights_values = (*sh).getMySqlSaveStringLights(mysql);
-				args.switch_values = (*sh).getMySqlSaveStringSwitches(mysql);
+				args.cond_unit_values = (*sh).getMySqlSaveStringCondUnits(mysql);
+				args.zone_values = (*sh).getMySqlSaveStringZones(mysql);
 
 				args.mysql = mysql;
 

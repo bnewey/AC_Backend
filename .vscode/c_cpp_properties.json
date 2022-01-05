@@ -3,10 +3,9 @@
         {
             "name": "Linux",
             "includePath": [
-                "/home/bbnewey/visual-workspace/OFFICE_LIGHTS/office_lights/**",
+                "/home/bbnewey/node-workspace/AC-REPO/AC_Backend/**",
                 "/usr/local/include/*",
-                "/usr/include/*",
-                "/usr/include/mongo-cxx-driver-v2.4/src/*"
+                "/usr/include/*"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
