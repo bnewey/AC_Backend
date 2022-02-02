@@ -250,7 +250,7 @@ int main() {
 		if( numIterations > 0 && totalReadChars == BUFF_SIZE){ 
 			//if something was successfully polled and read from USB, do stuff with this data
 			//cout<<"If poll&read ----"<<"WriteResponse: "<<writeResponse<<"  |  ReadResponse: "<<numIterations<<endl;
-			//print_buf(read_buf, numIterations ,totalReadChars);
+			print_buf(read_buf, numIterations ,totalReadChars);
 			missedReads = 0;
 	
 			//Handle Time Updates
@@ -265,6 +265,7 @@ int main() {
 
 			numJsonSends++;
 			const string tmp2 = (*sh).createJsonDataString( numJsonSends);
+			
 			//convert string to char array
 			char const * stringified_json = tmp2.c_str();
 			int size = strlen(stringified_json);
@@ -360,7 +361,7 @@ int main() {
 
 			//Have this write section after we recieve potential override commands from UI
 			//Edit write_buf with relay_p pointer to array
-			editWriteBuf(write_buf, sh);
+			(*sh).editWriteBuf(write_buf);
 
 			//Write to Serial Port to Update Relays
 			write_bytes(serial_port, write_buf);

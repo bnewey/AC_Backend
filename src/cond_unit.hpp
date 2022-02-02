@@ -9,6 +9,8 @@
 
 #include <ctime>
 
+#include "./constants.hpp"
+
 using namespace std;
 
 // Fraction class
@@ -20,15 +22,15 @@ class CondUnit {
     
     int id; //index of readbuf
     int array_index; //position in read_buf
-    short type; // 0 = chiller | 1 = heater
+    short type; // 1 = chiller | 2 = heater
     short cold_supply;
     short cold_return;
     short hot_supply;
     short hot_return;
-    short pressure_low_supply;
-    short pressure_low_return;
-    short pressure_high_supply;
-    short pressure_high_return;
+    short freon_temp_low;
+    short quarts_per_min;
+    short pressure_low;
+    short pressure_high;
     string name;
     string description;
     bool initialized;
@@ -61,10 +63,10 @@ class CondUnit {
     short getCondUnitColdReturn();
     short getCondUnitHotSupply();
     short getCondUnitHotReturn();
-    short getCondUnitPressureHighSupply();
-    short getCondUnitPressureHighReturn();
-    short getCondUnitPressureLowSupply();
-    short getCondUnitPressureLowReturn();
+    short getCondUnitFreonTempLow();
+    short getCondUnitQPM();
+    short getCondUnitPressureLow();
+    short getCondUnitPressureHigh();
     string getCondUnitName();
     string getCondUnitDesc();
     bool isInitialized();
@@ -78,10 +80,10 @@ class CondUnit {
     void setCondUnitColdReturn(short);
     void setCondUnitHotSupply(short);
     void setCondUnitHotReturn(short);
-    void setCondUnitPressureHighSupply(short);
-    void setCondUnitPressureHighReturn(short);
-    void setCondUnitPressureLowSupply(short);
-    void setCondUnitPressureLowReturn(short);
+    void setCondUnitFreonTempLow(short);
+    void setCondUnitQPM(short);
+    void setCondUnitPressureLow(short);
+    void setCondUnitPressureHigh(short);
     void setCondUnitName(string);
     void setCondUnitDescription(string); 
 

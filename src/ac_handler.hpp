@@ -70,6 +70,7 @@ class ACHandler {
 
     //Create Json for Ui Send
     string createJsonDataString(long numJsonSends);
+    void editWriteBuf(char (&temp)[WRITE_BUFF_SIZE]);
 
     vector<string> getMySqlSaveStringCondUnits(MYSQL & mysql);
     vector<string> getMySqlSaveStringCondUnitsHistory(MYSQL & mysql);

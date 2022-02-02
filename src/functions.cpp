@@ -141,40 +141,6 @@ void getDataFromRead(char  (&read_buf)[BUFF_SIZE], vector<vector<short>> & data_
 	}
 }
 
-void editWriteBuf(char (&temp)[WRITE_BUFF_SIZE] , shared_ptr<ACHandler> sh){
-	temp[0] = 0x02;
-
-	//Fill the Switch section
-	//this section is ignored
-	// for(int i=0; i<ZONES_MAX_SIZE;i++) { 
-	// 	temp[i+1] = 0x00;
-	// }
-
-	// //Fill the Lights section
-	// //fills with as many lights are existing
-	// vector<short> lightValues = (*sh).getLightValues();
-
-	// int lv_size = lightValues.size();
-	// cout<<"light values vector SIZE: "<<lv_size<<endl;
-
-	// auto iter = lightValues.begin();
-    // for ( ; iter !=  lightValues.end(); iter++){   
-    //     temp[ COND_UNIT_MAX_SIZE + 1 + (iter - lightValues.begin())] = ((*iter) ? 0x01 : 0x00);;
-    // }
-	// //Give the rest 0's
-	// //Not needed at this point, but it doesnt hurt 
-	// for(int i=0; i<(COND_UNIT_MAX_SIZE-lv_size);i++) { //this section is ignored
-	// 	temp[i + COND_UNIT_MAX_SIZE + 1 + lv_size] =  0x00;
-	// }
-
-	// temp[ZONES_MAX_SIZE + COND_UNIT_MAX_SIZE + 1] = 0xaa;
-	for(int i=0; i<WRITE_BUFF_SIZE-2;i++) { 
-	 	temp[i+1] = 0x00;
-	}
-	temp[WRITE_BUFF_SIZE-1] = 0xaa;
-
-}
-
 
 void write_bytes(int & serial_port, char (&temp)[WRITE_BUFF_SIZE]){
 	write(serial_port, temp, WRITE_BUFF_SIZE);//sizeof(temp));

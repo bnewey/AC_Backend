@@ -30,8 +30,6 @@ int read_bytes(char  (&read_buf)[BUFF_SIZE],int & serial_port , int & numIterati
 
 void getDataFromRead(char  (&read_buf)[BUFF_SIZE], vector<vector<short>> & switch_vector);
 
-void editWriteBuf(char (&temp)[WRITE_BUFF_SIZE] , shared_ptr<ACHandler> sh);
-
 void write_bytes(int & serial_port, char (&temp)[WRITE_BUFF_SIZE]);
 
 int usb_port(int & serial_port) ;

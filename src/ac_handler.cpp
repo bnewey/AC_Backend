@@ -21,12 +21,9 @@
 #include <ctime>
 
 #include "./ac_handler.hpp"
-// #include "./light.hpp"
-// #include "./switch.hpp"
-// #include "./single_switch.hpp"
-// #include "./double_switch.hpp"
 #include "./cond_unit.hpp"
 #include "./zone.hpp"
+#include "./constants.hpp"
 
 
 // Functor for deleting pointers in vector.
@@ -84,17 +81,17 @@ void ACHandler::init( vector<vector<string>> zone_config, vector<vector<string>>
         int compressor_on = stoi(cond_unit_config[i][4]);
         int temp_cold_supply = 0;
         int temp_cold_return = 0;
-        int temp_hot_supply, temp_hot_return, pressure_high_supply, pressure_high_return, pressure_low_supply, pressure_low_return = 0;
+        int temp_hot_supply, temp_hot_return, freon_temp_low,quarts_per_min, pressure_high, pressure_low = 0;
 
 
 
-        //id, array_i, type, cold_supply, cold_return, hot_supply, hot_return, pressure_low_supply, pressure_low_return, pressure_high_supply, pressure_high_return, name, desc
-        shared_ptr<CondUnit> unit = make_shared<CondUnit>(l_id, l_array_index, l_type, temp_cold_supply, temp_cold_return, temp_hot_supply, temp_hot_return,
-            pressure_low_supply, pressure_low_return, pressure_high_supply, pressure_high_return, "Cond Unit", l_description);
+        //id, array_i, type, cold_supply, cold_return, hot_supply, hot_return, pressure_low, pressure_high, name, desc
+        shared_ptr<CondUnit> unit = make_shared<CondUnit>(l_id, l_array_index, l_type, temp_cold_supply, temp_cold_return, temp_hot_supply, temp_hot_return, freon_temp_low, quarts_per_min,
+            pressure_low, pressure_high, "Cond Unit", l_description);
 
         cond_units.push_back( unit);  
 
-        if(l_type == int(0)){ //cold
+        if(l_type == int(1)){ //cold
             if(compressor_on == 1){
                 compressor_on_queue.push_back(unit);
             }else{
@@ -184,13 +181,13 @@ void ACHandler::updateUsingData(vector<vector<short>> data_from_read){
     int zones_hot_size = 0;
     for ( ; iter3 !=  zones.end(); iter3++)
     {
-        if((*iter3)->getModeValue() == int(0)){ //cold
+        if((*iter3)->getModeValue() == int(1)){ //cold
             sum_cold_return += (*iter3)->getZoneColdReturn();
             sum_cold_supply += (*iter3)->getZoneColdSupply();
             zones_cold_size++;
         }
          
-        if((*iter3)->getModeValue() == int(1)){ //hot
+        if((*iter3)->getModeValue() == int(2)){ //hot
             sum_hot_return += (*iter3)->getZoneHotReturn();
             sum_hot_supply += (*iter3)->getZoneHotSupply();
             zones_hot_size++;
@@ -227,9 +224,9 @@ void ACHandler::updateUsingData(vector<vector<short>> data_from_read){
 
         //set saved temps for next time
         (*adj_table).setAvgSavedTempColdReturn(avg_temp_cold_return);
-        //(*adj_table).setAvgSavedTempColdSupply(avg_temp_cold_supply);
-        //(*adj_table).setAvgSavedTempHotReturn(avg_temp_hot_return);
-        //(*adj_table).setAvgSavedTempHotSupply(avg_temp_hot_supply);
+        (*adj_table).setAvgSavedTempColdSupply(avg_temp_cold_supply);
+        (*adj_table).setAvgSavedTempHotReturn(avg_temp_hot_return);
+        (*adj_table).setAvgSavedTempHotSupply(avg_temp_hot_supply);
 
         //restart timer
         setCheckTimer(60);
@@ -312,7 +309,7 @@ vector<string> ACHandler::getMySqlSaveStringCondUnitsHistory(MYSQL & mysql){
     for ( ; iter !=  cond_units.end(); iter++)
     {
         sql = "";
-        sql += "INSERT INTO history__conditioning_units ( temp_cold_return, temp_cold_supply, temp_hot_return, temp_hot_supply, pressure_high_return, pressure_high_supply, pressure_low_return, pressure_low_supply ) ";
+        sql += "INSERT INTO history__conditioning_units ( temp_cold_return, temp_cold_supply, temp_hot_return, temp_hot_supply, pressure_high, pressure_low, qpm , type ) ";
         sql += " VALUES ( ";
         sql += to_string( (*iter)->getCondUnitColdReturn() );
         sql += " ,";
@@ -322,13 +319,13 @@ vector<string> ACHandler::getMySqlSaveStringCondUnitsHistory(MYSQL & mysql){
         sql += " ,";
         sql += to_string( (*iter)->getCondUnitHotSupply() );
         sql += " ,";
-        sql += to_string( (*iter)->getCondUnitPressureHighReturn() );
+        sql += to_string( (*iter)->getCondUnitPressureHigh() );
         sql += " ,";
-        sql += to_string( (*iter)->getCondUnitPressureHighSupply() );
+        sql += to_string( (*iter)->getCondUnitPressureLow() );
         sql += " ,";
-        sql += to_string( (*iter)->getCondUnitPressureLowReturn() );
-        sql += " ,";
-        sql += to_string( (*iter)->getCondUnitPressureLowSupply() );
+        sql += to_string( (*iter)->getCondUnitQPM() );
+         sql += " ,";
+        sql += to_string( (*iter)->getCondUnitType() );
         sql += " ) ";
         return_vector.push_back(sql);
     }
@@ -364,7 +361,7 @@ vector<string> ACHandler::getMySqlSaveStringZonesHistory(MYSQL & mysql){
     for ( ; iter !=  zones.end(); iter++)
     {
         sql = "";
-        sql += "INSERT INTO history__zones ( temp_cold_return, temp_cold_supply, temp_hot_return, temp_hot_supply ) ";
+        sql += "INSERT INTO history__zones ( temp_cold_return, temp_cold_supply, temp_hot_return, temp_hot_supply , mode) ";
         sql += " VALUES ( ";
         sql += to_string( (*iter)->getZoneColdReturn() );
         sql += " ,";
@@ -373,6 +370,8 @@ vector<string> ACHandler::getMySqlSaveStringZonesHistory(MYSQL & mysql){
         sql += to_string( (*iter)->getZoneHotReturn() );
         sql += " ,";
         sql += to_string( (*iter)->getZoneHotSupply() );
+        sql += " ,";
+        sql += to_string( (*iter)->getModeValue() );
         sql += " ) ";
         return_vector.push_back(sql);
     }
@@ -391,16 +390,34 @@ string ACHandler::createJsonDataString( long numJsonSends){
     auto c_iter = cond_units.begin();
     for ( ; c_iter !=  cond_units.end(); c_iter++)
     {
+        short c_type = (*c_iter)->getCondUnitType();
+        
         condUnitJson["id"] = (*c_iter)->getCondUnitId();
         condUnitJson["array_index"] =  ((*c_iter)->getCondUnitArrayIndex());
-        condUnitJson["temp_cold_return"] = (*c_iter)->getCondUnitColdReturn();
-        condUnitJson["temp_cold_supply"] = (*c_iter)->getCondUnitColdSupply();
-        condUnitJson["temp_hot_return"] = (*c_iter)->getCondUnitHotReturn();
-        condUnitJson["temp_hot_supply"] = (*c_iter)->getCondUnitHotSupply();
-        condUnitJson["pressure_high_return"] = (*c_iter)->getCondUnitPressureHighReturn();
-        condUnitJson["pressure_high_supply"] = (*c_iter)->getCondUnitPressureHighSupply();
-        condUnitJson["pressure_low_return"] = (*c_iter)->getCondUnitPressureLowReturn();
-        condUnitJson["pressure_low_supply"] = (*c_iter)->getCondUnitPressureLowSupply();
+
+        if(c_type == 0 || c_type == 1 ){
+            condUnitJson["temp_cold_return"] = (*c_iter)->getCondUnitColdReturn();
+            condUnitJson["temp_cold_supply"] = (*c_iter)->getCondUnitColdSupply();
+            condUnitJson["temp_hot_return"] = (*c_iter)->getCondUnitHotReturn();
+            condUnitJson["temp_hot_supply"] = (*c_iter)->getCondUnitHotSupply();
+            condUnitJson["pressure_high"] = (*c_iter)->getCondUnitPressureHigh();
+            condUnitJson["pressure_low"] = (*c_iter)->getCondUnitPressureLow();
+        }
+        if(c_type == 2){ //special1 
+            condUnitJson["water_drain_flow"] = (*c_iter)->getCondUnitFreonTempLow();
+            //or
+            condUnitJson["qpm"] = (*c_iter)->getCondUnitQPM();
+        }
+        if(c_type == 3){ //special2
+            condUnitJson["temp_cold_return"] = (*c_iter)->getCondUnitColdReturn();
+            condUnitJson["temp_cold_supply"] = (*c_iter)->getCondUnitColdSupply();
+            condUnitJson["temp_hot_return"] = (*c_iter)->getCondUnitHotReturn();
+            condUnitJson["temp_hot_supply"] = (*c_iter)->getCondUnitHotSupply();
+            condUnitJson["pressure_high"] = (*c_iter)->getCondUnitPressureHigh();
+            condUnitJson["pressure_low"] = (*c_iter)->getCondUnitPressureLow();
+        }
+        
+        
         condUnitJsonVec.push_back(condUnitJson);
     }
 	// End of CondUnit Data
@@ -441,12 +458,80 @@ string ACHandler::createJsonDataString( long numJsonSends){
 			output+=",";
 		}
 		output += fastWriter.write(zoneJsonVec[i]); //zonesData
-	}	
-	output += "]";
+	}
+    output += "]";
 	output += " }";
 	
 	//cout<<"OUTPUT"<<output<<endl;
 	return(output);
+}
+
+void ACHandler::editWriteBuf(char (&temp)[WRITE_BUFF_SIZE]){
+	temp[0] = 0x02;
+
+	//Fill the zone section
+	auto iter = zones.begin();
+    for ( ; iter !=  zones.end(); iter++){ 
+        short z_index = (*iter)->getZoneArrayIndex();
+        // we use z_index*8 through z_index + 8
+        temp[ z_index*8 ] =  0x00; //cold supply
+        temp[ z_index*8 +1] = 0x00; //hot supply
+        temp[ z_index*8 +2] = 0x00; //cold return
+        temp[ z_index*8 +3] = 0x00; //hot return
+        temp[ z_index*8 +4] = 0x00; //pump
+        temp[ z_index*8 +5] = 0x00; //heater
+        temp[ z_index*8 +6] = 0x00;
+        temp[ z_index*8 +7] = 0x00;
+    }
+
+	//Fill the CondUnit section  -- Special1 & 2 included
+	auto iter2 = cond_units.begin();
+    for ( ; iter2 !=  cond_units.end(); iter2++){ 
+        short cu_index = (*iter2)->getCondUnitArrayIndex();
+        short cu_type = (*iter2)->getCondUnitType();
+        if(cu_type == 0 || cu_type == 1){
+            // we use cu_index*8 through cu_index + 8
+            temp[ cu_index*8 ] =  0x00; //compressor bypass
+            temp[ cu_index*8 +1] = 0x00; //compressor bypass
+            temp[ cu_index*8 +2] = 0x00; //
+            temp[ cu_index*8 +3] = 0x00; //
+            temp[ cu_index*8 +4] = 0x00; //compressor fan
+            temp[ cu_index*8 +5] = 0x00; //compressor
+            temp[ cu_index*8 +6] = 0x00;
+            temp[ cu_index*8 +7] = 0x00;
+        }
+        if(cu_type == 2){
+            temp[ cu_index*8 ] =  0x00;  //water fill high pressure cold
+            temp[ cu_index*8 +1] = 0x00; //water fill high pressure hot
+            temp[ cu_index*8 +2] = 0x00; //water fill low pressure cold
+            temp[ cu_index*8 +3] = 0x00; //water fill low pressure hot
+            temp[ cu_index*8 +4] = 0x00;
+            temp[ cu_index*8 +5] = 0x00;
+            temp[ cu_index*8 +6] = 0x00;
+            temp[ cu_index*8 +7] = 0x00;
+        }
+        if(cu_type == 3){
+            temp[ cu_index*8 ] =  0x00;  //cold bypass
+            temp[ cu_index*8 +1] = 0x00; //cold drain
+            temp[ cu_index*8 +2] = 0x00; //hot bypass
+            temp[ cu_index*8 +3] = 0x00; //hot drain
+            temp[ cu_index*8 +4] = 0x00;
+            temp[ cu_index*8 +5] = 0x00;
+            temp[ cu_index*8 +6] = 0x00;
+            temp[ cu_index*8 +7] = 0x00;
+        }
+    }
+
+
+	//Give the rest 0's
+    short z_size = zones.size();
+    short cu_size = cond_units.size();
+	for(int i=0; i<((ZONES_MAX_SIZE + COND_UNIT_MAX_SIZE) - ( z_size + cu_size ));i++) { 
+		temp[i + ( z_size + cu_size )] =  0x00;
+	}
+
+	temp[WRITE_BUFF_SIZE-1] = 0xaa;
+
 }
 
 

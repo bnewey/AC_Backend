@@ -79,11 +79,59 @@ Zone::~Zone(){
 // }
 
 void Zone::updateZone(vector<short> updateData){
-    this->setModeValue(updateData[0]);
-    this->setZoneColdReturn(updateData[1]);
-    this->setZoneColdSupply(updateData[2]);
-    this->setZoneHotReturn(updateData[3]);
-    this->setZoneHotSupply(updateData[4]);
+    // [1]Temp 1 high byte
+    // [2]Temp 1 low byte
+    // [3]Temp 2 high byte
+    // [4]Temp 2 low byte
+    // [5]Temp 3 high byte
+    // [6]Temp 3 low byte
+    // [7]quarts per minute
+    // [8]Pressure 1 high
+    // [9]Pressure 1 high
+    // [10]Pressure 2 high
+    // [11]Pressure 2 high
+
+    short temp1read = short(updateData[0]*256) + updateData[1];
+    short temp2read = short(updateData[2]*256) + updateData[3];
+    short temp1, temp2 = 0;
+    //short temp3 = short(updateData[4]*256) + updateData[5];
+
+    // if(updateData[11]==1)//below 0 degrees celsius
+    //     {
+    //         temp1read=4095-temp1read;
+    //         ++temp1read;//2's complement for negative temp
+    //         if(temp1read<273){
+    //             temp1=32-((temp1read*1125)/10000);
+    //         }  
+    //         else temp1=1;
+    //     }
+    // else {
+        temp1=((temp1read*1125)/10000)+32;
+    //}
+
+    // if(updateData[11]==1)//below 0 degrees celsius
+    //     {
+    //         temp2read=4095-temp2read;
+    //         ++temp2read;//2's complement for negative temp
+    //         if(temp2read<273){
+    //             temp2=32-((temp2read*1125)/10000);
+    //         }  
+    //         else temp2=1;
+    //     }
+    // else {
+        temp2=((temp2read*1125)/10000)+32;
+    //}
+
+    if(mode == 0){ //cold
+        this->setZoneColdReturn(temp1);
+        this->setZoneColdSupply(temp2);
+    }
+    if(mode == 1){ //hot
+        this->setZoneHotReturn(temp1);
+        this->setZoneHotSupply(temp2);
+    }
+    
+    
 }
 
 
